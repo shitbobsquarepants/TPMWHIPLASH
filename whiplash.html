@@ -1,0 +1,2839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wild Goose - OEE & TPM Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .header {
+            background: white;
+            color: var(--dark);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+            min-width: 300px;
+        }
+        
+        .logo {
+            height: 60px;
+            width: auto;
+        }
+        
+        .header-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .export-button, .end-session-button, .start-session-button, .wiki-button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        
+        .export-button {
+            background: var(--success);
+            color: white;
+        }
+        
+        .export-button:hover {
+            background: #219653;
+        }
+        
+        .start-session-button {
+            background: var(--success);
+            color: white;
+        }
+        
+        .start-session-button:hover {
+            background: #219653;
+        }
+        
+        .end-session-button {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .end-session-button:hover {
+            background: #c0392b;
+        }
+        
+        .wiki-button {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .wiki-button:hover {
+            background: #2980b9;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 0 20px 20px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .sidebar h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 10px;
+        }
+        
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+        
+        .sidebar-section h3 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        
+        .sidebar-section ul {
+            list-style: none;
+        }
+        
+        .sidebar-section li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-section li:hover {
+            color: var(--secondary);
+        }
+        
+        .sidebar-section li i {
+            width: 20px;
+            text-align: center;
+        }
+        
+        .add-button {
+            background: var(--secondary);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .add-button:hover {
+            background: #2980b9;
+        }
+        
+        /* Main Content */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .card-header h2 {
+            color: var(--primary);
+            font-size: 18px;
+        }
+        
+        /* Session Status */
+        .session-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
+            background: var(--light);
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .session-status span {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .session-status .status {
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        
+        /* Production Controls */
+        .production-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .control-button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+        
+        .control-button.start {
+            background: var(--success);
+            color: white;
+        }
+        
+        .control-button.start:hover {
+            background: #219653;
+        }
+        
+        .control-button.stop {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .control-button.stop:hover {
+            background: #c0392b;
+        }
+        
+        .control-button.pause {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .control-button.pause:hover {
+            background: #e67e22;
+        }
+        
+        .control-button.active {
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5);
+            transform: scale(1.05);
+        }
+        
+        /* Timers Section */
+        .timers-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .timer-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .timer-label {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        .timer-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .timer-button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .timer-button.start {
+            background: var(--success);
+            color: white;
+        }
+        
+        .timer-button.stop {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .timer-button.reset {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        /* Totalizer Section */
+        .totalizer-section {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+        
+        .totalizer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .totalizer-header h3 {
+            color: var(--primary);
+            font-size: 16px;
+        }
+        
+        .totalizer-inputs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .totalizer-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .totalizer-input-group label {
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .totalizer-input-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .totalizer-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .totalizer-button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-weight: bold;
+        }
+        
+        .send-to-totalizer-button {
+            background: var(--success);
+            color: white;
+        }
+        
+        .send-to-totalizer-button:hover {
+            background: #219653;
+        }
+        
+        .reset-run-button {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .reset-run-button:hover {
+            background: #e67e22;
+        }
+        
+        .cancel-downtime-button {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .cancel-downtime-button:hover {
+            background: #c0392b;
+        }
+        
+        .totalizer-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+        
+        .totalizer-display span {
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        .totalizer-display .total-value {
+            color: var(--secondary);
+            font-size: 18px;
+        }
+        
+        /* Downtime Cans Lost Input */
+        .downtime-cans-section {
+            background: #fff3cd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--warning);
+        }
+        
+        .downtime-cans-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .downtime-cans-header h3 {
+            color: var(--primary);
+            font-size: 14px;
+        }
+        
+        .downtime-cans-inputs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .downtime-cans-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .downtime-cans-input label {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .downtime-cans-input input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 100px;
+            text-align: center;
+        }
+        
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .chart-card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        
+        /* Line Flow Diagram */
+        .line-flow {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .station {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .station:hover {
+            transform: scale(1.05);
+        }
+        
+        .station-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--light);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            margin-bottom: 8px;
+            border: 3px solid var(--secondary);
+            color: var(--primary);
+        }
+        
+        .station-icon.active {
+            border-color: var(--success);
+            background: #d4edda;
+        }
+        
+        .station-icon.warning {
+            border-color: var(--warning);
+            background: #fff3cd;
+        }
+        
+        .station-icon.danger {
+            border-color: var(--danger);
+            background: #f8d7da;
+        }
+        
+        .station-name {
+            font-size: 12px;
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .station-status {
+            font-size: 10px;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+        
+        .arrow {
+            font-size: 20px;
+            color: var(--secondary);
+        }
+        
+        /* OEE Metrics */
+        .oee-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .metric {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--secondary);
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        
+        /* Input Fields */
+        .input-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .input-group label {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .input-group input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            text-align: center;
+        }
+        
+        .input-group input:read-only {
+            background-color: #f8f9fa;
+            cursor: not-allowed;
+        }
+        
+        /* TPM Section */
+        .tpm-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+        
+        .failure-causes {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .failure-causes h3 {
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .cause-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .cause-item:hover {
+            background: #f0f8ff;
+        }
+        
+        /* Maintenance Schedule */
+        .schedule {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .schedule h3 {
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .time-slot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 8px 0;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        .time-slot.maintenance {
+            border-left-color: var(--warning);
+        }
+        
+        .time-slot.tpm {
+            border-left-color: var(--danger);
+        }
+        
+        /* Station Details Modal */
+        .station-details {
+            display: none;
+            margin-top: 20px;
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+        }
+        
+        .station-details.active {
+            display: block;
+        }
+        
+        .station-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .station-metric {
+            text-align: center;
+            padding: 10px;
+            background: white;
+            border-radius: 4px;
+        }
+        
+        .station-metric-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .station-metric-label {
+            font-size: 10px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #219653;
+        }
+        
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 500px;
+            max-width: 90%;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-header h2 {
+            color: var(--primary);
+            font-size: 18px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Wiki Modal */
+        .wiki-modal-content {
+            width: 800px;
+            max-width: 95%;
+        }
+        
+        .wiki-content {
+            padding: 10px;
+        }
+        
+        .wiki-section {
+            margin-bottom: 20px;
+        }
+        
+        .wiki-section h2 {
+            color: var(--primary);
+            border-bottom: 2px solid var(--secondary);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .wiki-section h3 {
+            color: var(--primary);
+            margin: 15px 0 10px;
+        }
+        
+        .wiki-section p {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .wiki-section ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .wiki-section li {
+            margin-bottom: 5px;
+        }
+        
+        .wiki-section .tip {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid var(--warning);
+            margin: 10px 0;
+        }
+        
+        .wiki-section .important {
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid var(--danger);
+            margin: 10px 0;
+        }
+        
+        .wiki-section code {
+            background: var(--light);
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        /* Status Indicators */
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-maintenance {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-paused {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-left {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .header-actions {
+                width: 100%;
+                justify-content: flex-start;
+                flex-wrap: wrap;
+            }
+            
+            .oee-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .tpm-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .line-flow {
+                flex-direction: column;
+            }
+            
+            .arrow {
+                transform: rotate(90deg);
+            }
+            
+            .station-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .production-controls {
+                flex-direction: column;
+            }
+            
+            .control-button {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .totalizer-inputs {
+                grid-template-columns: 1fr;
+            }
+            
+            .totalizer-buttons {
+                flex-direction: column;
+            }
+            
+            .downtime-cans-inputs {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .wiki-modal-content {
+                width: 95%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-left">
+            <img src="https://mistralaichatupprodswe.blob.core.windows.net/chat-images/04/55/23/0455239b-3e00-4c83-bcfc-38f4d1ad0cd8/9da41502-beb1-45a9-8b11-7be03dff0245/6fb891db-5f81-4487-b04a-92d9364dc841?sv=2025-01-05&spr=https&se=2026-06-04T18%3A02%3A26Z&skoid=c9baccad-3639-4379-a088-07b7e349293c&sktid=4fbc1168-2984-4d17-af19-ac5138c2378e&skt=2026-06-04T17%3A02%3A26Z&ske=2026-06-04T18%3A02%3A26Z&sks=b&skv=2025-01-05&sr=b&sp=r&sig=uT1Oaju5MhV1n9NKRcfwzgIfye65HPyeFyJwLW2WyMM%3D" alt="Whiplash Brewery Logo" class="logo">
+            <div class="header-title">Wild Goose - OEE & TPM Dashboard</div>
+        </div>
+        <div class="header-actions">
+            <button class="wiki-button" onclick="openModal('wiki')">
+                <i class="fas fa-book"></i> Wiki
+            </button>
+            <button class="export-button" onclick="exportToExcel()">
+                <i class="fas fa-file-excel"></i> Export to Excel
+            </button>
+            <button class="start-session-button" onclick="startSession()">
+                <i class="fas fa-play-circle"></i> Start Session
+            </button>
+            <button class="end-session-button" onclick="endSession()">
+                <i class="fas fa-stop-circle"></i> End Session
+            </button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <h2><i class="fas fa-industry"></i> Production Line</h2>
+            
+            <div class="sidebar-section">
+                <h3>Stations</h3>
+                <ul>
+                    <li onclick="selectLine('complete')"><i class="fas fa-sitemap"></i> Full Line</li>
+                    <li onclick="selectLine('depaletiseur')"><i class="fas fa-box-open"></i> Depalletizer</li>
+                    <li onclick="selectLine('remplissage')"><i class="fas fa-tint"></i> Filling (4 nozzles)</li>
+                    <li onclick="selectLine('sertissage')"><i class="fas fa-cog"></i> Seaming</li>
+                    <li onclick="selectLine('rinçage')"><i class="fas fa-shower"></i> Rinsing</li>
+                    <li onclick="selectLine('séchage')"><i class="fas fa-wind"></i> Drying</li>
+                    <li onclick="selectLine('étiquetage')"><i class="fas fa-tag"></i> Labeling</li>
+                    <li onclick="selectLine('datage')"><i class="fas fa-calendar-check"></i> Dating</li>
+                </ul>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3>Reports</h3>
+                <ul>
+                    <li><i class="fas fa-chart-line"></i> Daily OEE</li>
+                    <li><i class="fas fa-tools"></i> Weekly TPM</li>
+                    <li><i class="fas fa-history"></i> Breakdown History</li>
+                </ul>
+            </div>
+            
+            <button class="add-button" onclick="openModal('maintenance')">
+                <i class="fas fa-plus"></i> Add Maintenance Slot
+            </button>
+            <button class="add-button" onclick="openModal('tpm')">
+                <i class="fas fa-exclamation-triangle"></i> Record Breakdown
+            </button>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Session Status -->
+            <div class="session-status">
+                <span><i class="fas fa-info-circle"></i> Session Status:</span>
+                <span class="status status-stopped" id="sessionStatus">Not Started</span>
+            </div>
+            
+            <!-- Production Controls -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-play-circle"></i> Production Control</h2>
+                    <span class="status status-stopped" id="productionStatus">Stopped</span>
+                </div>
+                
+                <div class="production-controls">
+                    <button class="control-button start" onclick="startProduction()" id="startButton">
+                        <i class="fas fa-play"></i> Start
+                    </button>
+                    <button class="control-button stop" onclick="stopProduction()" id="stopButton">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                    <button class="control-button pause" onclick="toggleDowntimeTimer()" id="downtimeButton">
+                        <i class="fas fa-pause"></i> Operator Downtime
+                    </button>
+                    <button class="control-button pause" onclick="toggleCleaningTimer()" id="cleaningButton">
+                        <i class="fas fa-broom"></i> Cleaning Time
+                    </button>
+                </div>
+                
+                <!-- Totalizer Section -->
+                <div class="totalizer-section">
+                    <div class="totalizer-header">
+                        <h3><i class="fas fa-calculator"></i> Run Data Entry</h3>
+                    </div>
+                    <div class="totalizer-inputs">
+                        <div class="totalizer-input-group">
+                            <label for="runInSpecCans">In-Spec Cans (This Run)</label>
+                            <input type="number" id="runInSpecCans" value="0" min="0">
+                        </div>
+                        <div class="totalizer-input-group">
+                            <label for="runOutOfSpec">Out of Spec (This Run)</label>
+                            <input type="number" id="runOutOfSpec" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="totalizer-buttons">
+                        <button class="totalizer-button send-to-totalizer-button" onclick="sendToTotalizer()">
+                            <i class="fas fa-paper-plane"></i> Send to Totalizer
+                        </button>
+                        <button class="totalizer-button reset-run-button" onclick="resetRunData()">
+                            <i class="fas fa-undo"></i> Reset Run Data
+                        </button>
+                    </div>
+                    <div class="totalizer-display">
+                        <span><i class="fas fa-database"></i> Total Cans Produced:</span>
+                        <span class="total-value" id="totalCansDisplay">0</span>
+                    </div>
+                    <div class="totalizer-display">
+                        <span><i class="fas fa-check-circle"></i> Total In-Spec Cans:</span>
+                        <span class="total-value" id="inSpecCansDisplay">0</span>
+                    </div>
+                    <div class="totalizer-display">
+                        <span><i class="fas fa-exclamation-triangle"></i> Total Out of Spec:</span>
+                        <span class="total-value" id="outOfSpecDisplay">0</span>
+                    </div>
+                </div>
+                
+                <!-- Downtime Cans Lost Input -->
+                <div class="downtime-cans-section" id="downtimeCansSection" style="display: none;">
+                    <div class="downtime-cans-header">
+                        <h3><i class="fas fa-exclamation-circle" style="color: var(--warning);"></i> Cans Lost During Downtime</h3>
+                        <button class="totalizer-button cancel-downtime-button" onclick="cancelDowntimeCans()">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                    <div class="downtime-cans-inputs">
+                        <div class="downtime-cans-input">
+                            <label for="downtimeCansLost">Estimated Cans Lost:</label>
+                            <input type="number" id="downtimeCansLost" value="0" min="0">
+                        </div>
+                        <button class="totalizer-button send-to-totalizer-button" onclick="addDowntimeCansToOutOfSpec()">
+                            <i class="fas fa-plus"></i> Add to Out of Spec
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="input-section">
+                    <div class="input-group">
+                        <label for="totalCans">Total Cans Produced (Accumulated)</label>
+                        <input type="number" id="totalCans" value="0" min="0" readonly>
+                    </div>
+                    <div class="input-group">
+                        <label for="inSpecCans">In-Spec Cans (Accumulated)</label>
+                        <input type="number" id="inSpecCans" value="0" min="0" readonly>
+                    </div>
+                    <div class="input-group">
+                        <label for="outOfSpec">Out of Spec (Accumulated)</label>
+                        <input type="number" id="outOfSpec" value="0" min="0" readonly>
+                    </div>
+                </div>
+                
+                <div class="timers-section">
+                    <div class="timer-card">
+                        <div class="timer-label"><i class="fas fa-clock"></i> Production Time</div>
+                        <div class="timer-value" id="productionTimer">00:00:00</div>
+                    </div>
+                    <div class="timer-card">
+                        <div class="timer-label"><i class="fas fa-pause-circle"></i> Downtime</div>
+                        <div class="timer-value" id="downtimeTimer">00:00:00</div>
+                        <div class="timer-controls">
+                            <button class="timer-button start" onclick="startDowntimeTimer()"><i class="fas fa-play"></i></button>
+                            <button class="timer-button stop" onclick="stopDowntimeTimer()"><i class="fas fa-stop"></i></button>
+                            <button class="timer-button reset" onclick="resetDowntimeTimer()"><i class="fas fa-undo"></i></button>
+                        </div>
+                    </div>
+                    <div class="timer-card">
+                        <div class="timer-label"><i class="fas fa-broom"></i> Cleaning Time</div>
+                        <div class="timer-value" id="cleaningTimer">00:00:00</div>
+                        <div class="timer-controls">
+                            <button class="timer-button start" onclick="startCleaningTimer()"><i class="fas fa-play"></i></button>
+                            <button class="timer-button stop" onclick="stopCleaningTimer()"><i class="fas fa-stop"></i></button>
+                            <button class="timer-button reset" onclick="resetCleaningTimer()"><i class="fas fa-undo"></i></button>
+                        </div>
+                    </div>
+                    <div class="timer-card">
+                        <div class="timer-label"><i class="fas fa-user-clock"></i> Operator Pause</div>
+                        <div class="timer-value" id="pauseTimer">00:00:00</div>
+                        <div class="timer-controls">
+                            <button class="timer-button start" onclick="startPauseTimer()"><i class="fas fa-play"></i></button>
+                            <button class="timer-button stop" onclick="stopPauseTimer()"><i class="fas fa-stop"></i></button>
+                            <button class="timer-button reset" onclick="resetPauseTimer()"><i class="fas fa-undo"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Runtime Chart -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-bar"></i> Runtime Analysis</h2>
+                </div>
+                <div class="charts-section">
+                    <div class="chart-card">
+                        <h3><i class="fas fa-clock"></i> Time Distribution</h3>
+                        <div class="chart-container">
+                            <canvas id="timeDistributionChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <h3><i class="fas fa-chart-pie"></i> Efficiency Breakdown</h3>
+                        <div class="chart-container">
+                            <canvas id="efficiencyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Line Flow Diagram -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-project-diagram"></i> Production Line Flow</h2>
+                    <span class="status status-stopped">Stopped</span>
+                </div>
+                
+                <div class="line-flow">
+                    <div class="station" onclick="showStationDetails('depaletiseur')">
+                        <div class="station-icon" id="depaletiseur-icon"><i class="fas fa-box-open"></i></div>
+                        <div class="station-name">Depalletizer</div>
+                        <div class="station-status" id="depaletiseur-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('remplissage')">
+                        <div class="station-icon" id="remplissage-icon"><i class="fas fa-tint"></i></div>
+                        <div class="station-name">Filling</div>
+                        <div class="station-status" id="remplissage-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('sertissage')">
+                        <div class="station-icon" id="sertissage-icon"><i class="fas fa-cog"></i></div>
+                        <div class="station-name">Seaming</div>
+                        <div class="station-status" id="sertissage-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('rinçage')">
+                        <div class="station-icon" id="rinçage-icon"><i class="fas fa-shower"></i></div>
+                        <div class="station-name">Rinsing</div>
+                        <div class="station-status" id="rinçage-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('séchage')">
+                        <div class="station-icon" id="séchage-icon"><i class="fas fa-wind"></i></div>
+                        <div class="station-name">Drying</div>
+                        <div class="station-status" id="séchage-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('étiquetage')">
+                        <div class="station-icon" id="étiquetage-icon"><i class="fas fa-tag"></i></div>
+                        <div class="station-name">Labeling</div>
+                        <div class="station-status" id="étiquetage-status">0% | -</div>
+                    </div>
+                    <div class="arrow"><i class="fas fa-arrow-right"></i></div>
+                    
+                    <div class="station" onclick="showStationDetails('datage')">
+                        <div class="station-icon" id="datage-icon"><i class="fas fa-calendar-check"></i></div>
+                        <div class="station-name">Dating</div>
+                        <div class="station-status" id="datage-status">0% | -</div>
+                    </div>
+                </div>
+                
+                <!-- Station Details -->
+                <div class="station-details" id="stationDetails">
+                    <h3 id="stationDetailsTitle">Station Details</h3>
+                    <div class="station-metrics">
+                        <div class="station-metric">
+                            <div class="station-metric-value" id="stationOEE">0%</div>
+                            <div class="station-metric-label">OEE</div>
+                        </div>
+                        <div class="station-metric">
+                            <div class="station-metric-value" id="stationAvailability">0%</div>
+                            <div class="station-metric-label">Availability</div>
+                        </div>
+                        <div class="station-metric">
+                            <div class="station-metric-value" id="stationPerformance">0%</div>
+                            <div class="station-metric-label">Performance</div>
+                        </div>
+                        <div class="station-metric">
+                            <div class="station-metric-value" id="stationQuality">0%</div>
+                            <div class="station-metric-label">Quality</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <h4><i class="fas fa-history"></i> Recent Breakdowns</h4>
+                        <div id="stationTPMHistory"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- OEE Dashboard -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-chart-line"></i> OEE Dashboard - Full Line</h2>
+                    <span class="status status-stopped">Stopped</span>
+                </div>
+                
+                <div class="oee-metrics">
+                    <div class="metric">
+                        <div class="metric-label"><i class="fas fa-clock"></i> Availability</div>
+                        <div class="metric-value" id="availability">0%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label"><i class="fas fa-tachometer-alt"></i> Performance</div>
+                        <div class="metric-value" id="performance">0%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label"><i class="fas fa-check-circle"></i> Quality</div>
+                        <div class="metric-value" id="quality">0%</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-label"><i class="fas fa-star"></i> Overall OEE</div>
+                        <div class="metric-value" id="oee">0%</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TPM Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-tools"></i> TPM - Total Productive Maintenance</h2>
+                </div>
+                
+                <div class="tpm-grid">
+                    <div class="failure-causes">
+                        <h3><i class="fas fa-exclamation-circle"></i> Breakdown Causes by Station</h3>
+                        <div class="cause-item" onclick="filterByCause('mechanical')">
+                            <span><i class="fas fa-cogs"></i> Mechanical Issues</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="cause-item" onclick="filterByCause('electrical')">
+                            <span><i class="fas fa-bolt"></i> Electrical Issues</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="cause-item" onclick="filterByCause('seaming')">
+                            <span><i class="fas fa-cog"></i> Seaming</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="cause-item" onclick="filterByCause('filling')">
+                            <span><i class="fas fa-tint"></i> Filling</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="cause-item" onclick="filterByCause('operator')">
+                            <span><i class="fas fa-user-hard-hat"></i> Operator Error</span>
+                            <span>0%</span>
+                        </div>
+                        <div class="cause-item" onclick="filterByCause('other')">
+                            <span><i class="fas fa-ellipsis-h"></i> Other</span>
+                            <span>0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="schedule">
+                        <h3><i class="fas fa-calendar-alt"></i> Scheduled Maintenance Slots</h3>
+                        <div id="maintenanceSlots"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Equipment Health -->
+            <div class="card">
+                <div class="card-header">
+                    <h2><i class="fas fa-heartbeat"></i> Equipment Health by Station</h2>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;" id="equipmentHealth">
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Maintenance Modal -->
+    <div class="modal" id="maintenanceModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-wrench"></i> Add Maintenance Slot</h2>
+                <button class="close-modal" onclick="closeModal('maintenance')">&times;</button>
+            </div>
+            <form id="maintenanceForm">
+                <div class="form-group">
+                    <label for="maintenanceStation"><i class="fas fa-industry"></i> Station</label>
+                    <select id="maintenanceStation" required>
+                        <option value="">Select...</option>
+                        <option value="depaletiseur">Depalletizer</option>
+                        <option value="remplissage">Filling (4 nozzles)</option>
+                        <option value="sertissage">Seaming</option>
+                        <option value="rinçage">Rinsing</option>
+                        <option value="séchage">Drying</option>
+                        <option value="étiquetage">Labeling</option>
+                        <option value="datage">Dating</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceDate"><i class="fas fa-calendar"></i> Date</label>
+                    <input type="date" id="maintenanceDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceStart"><i class="fas fa-clock"></i> Start Time</label>
+                    <input type="time" id="maintenanceStart" required>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceEnd"><i class="fas fa-clock"></i> End Time</label>
+                    <input type="time" id="maintenanceEnd" required>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceType"><i class="fas fa-tag"></i> Type</label>
+                    <select id="maintenanceType" required>
+                        <option value="">Select...</option>
+                        <option value="preventive">Preventive Maintenance</option>
+                        <option value="corrective">Corrective Maintenance</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="calibration">Calibration</option>
+                        <option value="inspection">Inspection</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="maintenanceDescription"><i class="fas fa-sticky-note"></i> Description</label>
+                    <textarea id="maintenanceDescription" required></textarea>
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveMaintenance()">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button class="btn btn-danger" onclick="closeModal('maintenance')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TPM Modal -->
+    <div class="modal" id="tpmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-exclamation-triangle"></i> Record Breakdown (TPM)</h2>
+                <button class="close-modal" onclick="closeModal('tpm')">&times;</button>
+            </div>
+            <form id="tpmForm">
+                <div class="form-group">
+                    <label for="tpmStation"><i class="fas fa-industry"></i> Station</label>
+                    <select id="tpmStation" required>
+                        <option value="">Select...</option>
+                        <option value="depaletiseur">Depalletizer</option>
+                        <option value="remplissage">Filling (4 nozzles)</option>
+                        <option value="sertissage">Seaming</option>
+                        <option value="rinçage">Rinsing</option>
+                        <option value="séchage">Drying</option>
+                        <option value="étiquetage">Labeling</option>
+                        <option value="datage">Dating</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tpmDate"><i class="fas fa-calendar"></i> Date and Time</label>
+                    <input type="datetime-local" id="tpmDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="tpmCause"><i class="fas fa-search"></i> Root Cause</label>
+                    <select id="tpmCause" required>
+                        <option value="">Select...</option>
+                        <option value="mechanical">Mechanical Issue</option>
+                        <option value="electrical">Electrical Issue</option>
+                        <option value="hydraulic">Hydraulic Issue</option>
+                        <option value="operator">Operator Error</option>
+                        <option value="maintenance">Inadequate Maintenance</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="tpmCansLost"><i class="fas fa-beer"></i> Estimated Cans Lost</label>
+                    <input type="number" id="tpmCansLost" placeholder="Number of cans lost during downtime" min="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label for="tpmSubCause"><i class="fas fa-info-circle"></i> Sub-cause (optional)</label>
+                    <input type="text" id="tpmSubCause" placeholder="Specify if necessary">
+                </div>
+                <div class="form-group">
+                    <label for="tpmDescription"><i class="fas fa-sticky-note"></i> Description</label>
+                    <textarea id="tpmDescription" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tpmDuration"><i class="fas fa-hourglass-half"></i> Downtime Duration (minutes)</label>
+                    <input type="number" id="tpmDuration" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label for="tpmSolution"><i class="fas fa-tools"></i> Solution Applied</label>
+                    <textarea id="tpmSolution"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tpmParts"><i class="fas fa-puzzle-piece"></i> Replaced Parts</label>
+                    <input type="text" id="tpmParts" placeholder="List of parts">
+                </div>
+            </form>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveTPM()">
+                    <i class="fas fa-save"></i> Save
+                </button>
+                <button class="btn btn-danger" onclick="closeModal('tpm')">
+                    <i class="fas fa-times"></i> Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Wiki Modal -->
+    <div class="modal" id="wikiModal">
+        <div class="modal-content wiki-modal-content">
+            <div class="modal-header">
+                <h2><i class="fas fa-book"></i> Wild Goose Dashboard - User Wiki</h2>
+                <button class="close-modal" onclick="closeModal('wiki')">&times;</button>
+            </div>
+            <div class="wiki-content">
+                <div class="wiki-section">
+                    <h2><i class="fas fa-info-circle"></i> Introduction</h2>
+                    <p>
+                        The <strong>Wild Goose OEE & TPM Dashboard</strong> is a comprehensive tool designed to help brewery operators 
+                        monitor, track, and optimize their production line performance. It combines <strong>Overall Equipment Effectiveness (OEE)</strong> 
+                        metrics with <strong>Total Productive Maintenance (TPM)</strong> practices to ensure maximum efficiency and minimal downtime.
+                    </p>
+                    <p>
+                        This dashboard is particularly useful for tracking production runs, identifying bottlenecks, and maintaining 
+                        equipment health across all stations of your canning line.
+                    </p>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-rocket"></i> Getting Started</h2>
+                    <h3>1. Starting a Session</h3>
+                    <p>Before you begin production, you must start a session:</p>
+                    <ul>
+                        <li>Click the <strong>"Start Session"</strong> button in the header.</li>
+                        <li>The session status will change to <span class="status status-running">Active</span>.</li>
+                        <li>All timers and data tracking will begin automatically.</li>
+                    </ul>
+                    
+                    <h3>2. Ending a Session</h3>
+                    <p>At the end of your shift or production run:</p>
+                    <ul>
+                        <li>Click the <strong>"End Session"</strong> button.</li>
+                        <li>All timers will pause, but <strong>all data will be saved</strong>.</li>
+                        <li>The session status will change to <span class="status status-stopped">Session Ended</span>.</li>
+                        <li>You can restart a new session the next day, and all data will accumulate.</li>
+                    </ul>
+                    
+                    <div class="tip">
+                        <strong>💡 Tip:</strong> Always end your session properly to ensure no data is lost. The system automatically saves all metrics to your browser's local storage.
+                    </div>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-play-circle"></i> Production Control</h2>
+                    <h3>Starting and Stopping Production</h3>
+                    <p>
+                        Use the <strong>Start</strong> and <strong>Stop</strong> buttons to control the production line:
+                    </p>
+                    <ul>
+                        <li><strong>Start:</strong> Begins the production timer. The status will change to <span class="status status-running">Running</span>.</li>
+                        <li><strong>Stop:</strong> Pauses the production timer. The status will change to <span class="status status-stopped">Stopped</span>.</li>
+                    </ul>
+                    
+                    <h3>Tracking Downtime</h3>
+                    <p>
+                        If the production line stops unexpectedly (e.g., for maintenance, cleaning, or operator breaks), use the 
+                        <strong>"Operator Downtime"</strong> button:
+                    </p>
+                    <ul>
+                        <li>Click <strong>"Operator Downtime"</strong> to start tracking downtime.</li>
+                        <li>A section will appear to estimate <strong>cans lost during downtime</strong>.</li>
+                        <li>Enter the number of cans lost and click <strong>"Add to Out of Spec"</strong> to include them in your quality metrics.</li>
+                        <li>Click <strong>"Cancel"</strong> if the downtime was a false alarm or the cans were not actually lost.</li>
+                        <li>Click the downtime timer again to stop tracking.</li>
+                    </ul>
+                    
+                    <h3>Cleaning Time</h3>
+                    <p>
+                        Use the <strong>"Cleaning Time"</strong> button to track time spent on cleaning equipment. This is separate from 
+                        production downtime and helps you analyze cleaning efficiency.
+                    </p>
+                    
+                    <div class="important">
+                        <strong>⚠️ Important:</strong> Always stop the production timer before starting downtime or cleaning timers to ensure accurate data.
+                    </div>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-calculator"></i> Run Data Entry (Totalizer)</h2>
+                    <p>
+                        The <strong>Totalizer</strong> section allows you to track the number of cans produced during each run. 
+                        You only need to enter <strong>In-Spec</strong> and <strong>Out of Spec</strong> cans—the total is calculated automatically.
+                    </p>
+                    <h3>How to Use the Totalizer:</h3>
+                    <ul>
+                        <li>Enter the number of <strong>In-Spec Cans</strong> (cans that meet quality standards).</li>
+                        <li>Enter the number of <strong>Out of Spec</strong> cans (cans with defects, low fills, or other issues).</li>
+                        <li>Click <strong>"Send to Totalizer"</strong> to add these values to your accumulated totals.</li>
+                        <li>Use <strong>"Reset Run Data"</strong> to clear the current run's data without saving.</li>
+                    </ul>
+                    <p>
+                        <strong>Note:</strong> Cans lost during downtime are <strong>automatically added</strong> to the "Out of Spec (This Run)" field 
+                        when you stop the downtime timer or save a breakdown record.
+                    </p>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-chart-line"></i> OEE Dashboard</h2>
+                    <p>
+                        <strong>OEE (Overall Equipment Effectiveness)</strong> is a key performance indicator that measures how effectively 
+                        your production line is running. It is calculated as:
+                    </p>
+                    <p style="text-align: center; font-size: 18px; margin: 15px 0;">
+                        <strong>OEE = Availability × Performance × Quality</strong>
+                    </p>
+                    <h3>OEE Metrics Explained:</h3>
+                    <ul>
+                        <li><strong>Availability:</strong> The percentage of time the equipment is available for production (vs. downtime).</li>
+                        <li><strong>Performance:</strong> The speed at which the equipment runs compared to its maximum capacity.</li>
+                        <li><strong>Quality:</strong> The percentage of good (in-spec) products out of the total produced.</li>
+                        <li><strong>Overall OEE:</strong> The product of the three metrics above, giving a comprehensive view of efficiency.</li>
+                    </ul>
+                    <p>
+                        The dashboard automatically calculates these metrics based on your production data and downtime records.
+                    </p>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-tools"></i> TPM - Total Productive Maintenance</h2>
+                    <p>
+                        <strong>TPM (Total Productive Maintenance)</strong> is a proactive approach to equipment maintenance that aims to 
+                        maximize production efficiency by preventing downtime, defects, and accidents.
+                    </p>
+                    <h3>Recording a Breakdown:</h3>
+                    <p>If a breakdown occurs, record it using the <strong>"Record Breakdown"</strong> button:</p>
+                    <ul>
+                        <li>Select the <strong>Station</strong> where the breakdown occurred.</li>
+                        <li>Enter the <strong>Date and Time</strong> of the breakdown.</li>
+                        <li>Select the <strong>Root Cause</strong> (e.g., mechanical, electrical, operator error).</li>
+                        <li>Enter the <strong>Estimated Cans Lost</strong> during the breakdown.</li>
+                        <li>Add a <strong>Description</strong> of the issue.</li>
+                        <li>Enter the <strong>Downtime Duration</strong> in minutes.</li>
+                        <li>Optionally, add a <strong>Solution Applied</strong> and any <strong>Replaced Parts</strong>.</li>
+                        <li>Click <strong>"Save"</strong> to record the breakdown.</li>
+                    </ul>
+                    <p>
+                        Recorded breakdowns will appear in the station's history and will be used to calculate OEE metrics.
+                    </p>
+                    
+                    <h3>Breakdown Causes:</h3>
+                    <p>
+                        The dashboard tracks the most common causes of breakdowns by station. This helps you identify patterns and 
+                        prioritize maintenance efforts. The causes include:
+                    </p>
+                    <ul>
+                        <li>Mechanical Issues</li>
+                        <li>Electrical Issues</li>
+                        <li>Seaming Problems</li>
+                        <li>Filling Problems</li>
+                        <li>Operator Error</li>
+                        <li>Other</li>
+                    </ul>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-chart-bar"></i> Runtime Analysis Charts</h2>
+                    <p>
+                        The dashboard includes two charts to help you visualize your production data:
+                    </p>
+                    <h3>1. Time Distribution (Bar Chart)</h3>
+                    <p>
+                        This chart shows the distribution of time across different activities:
+                    </p>
+                    <ul>
+                        <li><strong>Production Time:</strong> Time spent actively producing cans.</li>
+                        <li><strong>Downtime:</strong> Time when the line was stopped due to issues.</li>
+                        <li><strong>Cleaning Time:</strong> Time spent cleaning equipment.</li>
+                        <li><strong>Operator Pause:</strong> Time when operators took breaks or paused production.</li>
+                    </ul>
+                    
+                    <h3>2. Efficiency Breakdown (Pie Chart)</h3>
+                    <p>
+                        This chart provides a visual breakdown of how your total time was spent, making it easy to see the proportion 
+                        of productive vs. non-productive time at a glance.
+                    </p>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-file-excel"></i> Exporting Data</h2>
+                    <p>
+                        You can export all your production data to an Excel file for further analysis or reporting:
+                    </p>
+                    <ul>
+                        <li>Click the <strong>"Export to Excel"</strong> button in the header.</li>
+                        <li>The file will include multiple sheets:
+                            <ul>
+                                <li><strong>Production Data:</strong> Total cans, in-spec cans, out of spec, timers, and OEE metrics.</li>
+                                <li><strong>Maintenance Schedule:</strong> All scheduled maintenance slots.</li>
+                                <li><strong>TPM Data:</strong> All recorded breakdowns, including causes, durations, and solutions.</li>
+                                <li><strong>Stations Data:</strong> OEE metrics for each station.</li>
+                            </ul>
+                        </li>
+                        <li>The file will be named <code>Wild_Goose_Production_Report.xlsx</code>.</li>
+                    </ul>
+                    <div class="tip">
+                        <strong>💡 Tip:</strong> Use the exported data to create custom reports or share production metrics with your team.
+                    </div>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-project-diagram"></i> Production Line Flow</h2>
+                    <p>
+                        The <strong>Production Line Flow</strong> diagram provides a visual representation of your canning line, from 
+                        <strong>Depalletizer</strong> to <strong>Dating</strong>. Each station's status is displayed with:
+                    </p>
+                    <ul>
+                        <li><strong>OEE Percentage:</strong> The Overall Equipment Effectiveness for that station.</li>
+                        <li><strong>Status:</strong> OK (green), Warning (yellow), or Critical (red).</li>
+                    </ul>
+                    <p>
+                        Click on any station to view its detailed metrics and breakdown history.
+                    </p>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-heartbeat"></i> Equipment Health</h2>
+                    <p>
+                        The <strong>Equipment Health</strong> section provides an overview of the health status of each station in your production line. 
+                        Each station is displayed with:
+                    </p>
+                    <ul>
+                        <li><strong>Status Emoji:</strong> 🟢 (Good), 🟡 (Warning), 🔴 (Critical), or ⚪ (No data).</li>
+                        <li><strong>OEE Percentage:</strong> The current OEE for the station.</li>
+                        <li><strong>Last Maintenance:</strong> The date of the last recorded maintenance (if available).</li>
+                    </ul>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-lightbulb"></i> Best Practices</h2>
+                    <ul>
+                        <li><strong>Start and End Sessions Properly:</strong> Always use the session buttons to ensure accurate data tracking.</li>
+                        <li><strong>Record All Downtime:</strong> Even short downtimes should be recorded to get accurate OEE metrics.</li>
+                        <li><strong>Track Cans Lost:</strong> Estimating and recording cans lost during downtime helps you understand the true cost of breakdowns.</li>
+                        <li><strong>Review Breakdown Causes:</strong> Regularly check the breakdown causes to identify recurring issues and address them proactively.</li>
+                        <li><strong>Use the Totalizer:</strong> Enter run data regularly to keep your production totals up to date.</li>
+                        <li><strong>Export Data Weekly:</strong> Export your data weekly to create a backup and analyze trends over time.</li>
+                    </ul>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-question-circle"></i> Troubleshooting</h2>
+                    <h3>My data isn't saving. What should I do?</h3>
+                    <p>
+                        The dashboard uses your browser's <strong>localStorage</strong> to save data. If your data isn't saving:
+                    </p>
+                    <ul>
+                        <li>Make sure you're using a modern browser (Chrome, Firefox, Edge, or Safari).</li>
+                        <li>Check that your browser's localStorage isn't full (clear some data if needed).</li>
+                        <li>Ensure you're not in <strong>Private/Incognito Mode</strong>, as some browsers disable localStorage in this mode.</li>
+                    </ul>
+                    
+                    <h3>The timers aren't working. What's wrong?</h3>
+                    <p>
+                        If the timers aren't starting or stopping:
+                    </p>
+                    <ul>
+                        <li>Make sure you've started a session using the <strong>"Start Session"</strong> button.</li>
+                        <li>Check that you're not trying to start a timer that's already running.</li>
+                        <li>Refresh the page and try again.</li>
+                    </ul>
+                    
+                    <h3>How do I reset all data?</h3>
+                    <p>
+                        To reset all data, you can clear your browser's localStorage:
+                    </p>
+                    <ul>
+                        <li>In Chrome: Go to <code>Settings > Privacy and Security > Clear Browsing Data</code> and select <code>Local Storage</code>.</li>
+                        <li>In Firefox: Go to <code>Options > Privacy & Security > Cookies and Site Data > Clear Data</code>.</li>
+                        <li>Alternatively, open the browser's Developer Tools (F12) and run <code>localStorage.clear()</code> in the Console.</li>
+                    </ul>
+                    <div class="important">
+                        <strong>⚠️ Warning:</strong> Clearing localStorage will permanently delete all your saved data. Make sure to export your data first if you need to keep it.
+                    </div>
+                </div>
+                
+                <div class="wiki-section">
+                    <h2><i class="fas fa-globe"></i> Contact & Support</h2>
+                    <p>
+                        If you encounter any issues or have questions about the dashboard, please contact your system administrator 
+                        or the development team.
+                    </p>
+                    <p>
+                        <strong>Note:</strong> This dashboard is designed for internal use at Whiplash Brewery and is optimized for the Wild Goose canning line.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Local Storage Keys
+        const STORAGE_KEYS = {
+            maintenance: 'wildGooseMaintenance',
+            tpm: 'wildGooseTPM',
+            oee: 'wildGooseOEE',
+            stations: 'wildGooseStations',
+            production: 'wildGooseProduction',
+            runtimeHistory: 'wildGooseRuntimeHistory',
+            session: 'wildGooseSession',
+            accumulatedTime: 'wildGooseAccumulatedTime'
+        };
+        
+        // Timer variables
+        let productionTimerInterval;
+        let downtimeTimerInterval;
+        let cleaningTimerInterval;
+        let pauseTimerInterval;
+        
+        let productionSeconds = 0;
+        let downtimeSeconds = 0;
+        let cleaningSeconds = 0;
+        let pauseSeconds = 0;
+        
+        let accumulatedProductionSeconds = 0;
+        let accumulatedDowntimeSeconds = 0;
+        let accumulatedCleaningSeconds = 0;
+        let accumulatedPauseSeconds = 0;
+        
+        let isProductionRunning = false;
+        let isDowntimeRunning = false;
+        let isCleaningRunning = false;
+        let isPauseRunning = false;
+        let isSessionActive = false;
+        
+        // Chart instances
+        let timeDistributionChart;
+        let efficiencyChart;
+        
+        // Temporary downtime cans lost
+        let tempDowntimeCansLost = 0;
+        
+        // Stations data
+        const stations = [
+            { id: 'depaletiseur', name: 'Depalletizer', icon: '<i class="fas fa-box-open"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'remplissage', name: 'Filling', icon: '<i class="fas fa-tint"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'sertissage', name: 'Seaming', icon: '<i class="fas fa-cog"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'rinçage', name: 'Rinsing', icon: '<i class="fas fa-shower"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'séchage', name: 'Drying', icon: '<i class="fas fa-wind"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'étiquetage', name: 'Labeling', icon: '<i class="fas fa-tag"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' },
+            { id: 'datage', name: 'Dating', icon: '<i class="fas fa-calendar-check"></i>', oee: 0, availability: 0, performance: 0, quality: 0, status: '' }
+        ];
+        
+        // Initialize data from localStorage
+        function initializeData() {
+            if (!localStorage.getItem(STORAGE_KEYS.maintenance)) {
+                localStorage.setItem(STORAGE_KEYS.maintenance, JSON.stringify([]));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.tpm)) {
+                localStorage.setItem(STORAGE_KEYS.tpm, JSON.stringify([]));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.oee)) {
+                localStorage.setItem(STORAGE_KEYS.oee, JSON.stringify({ availability: 0, performance: 0, quality: 0, oee: 0 }));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.stations)) {
+                localStorage.setItem(STORAGE_KEYS.stations, JSON.stringify(stations));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.production)) {
+                localStorage.setItem(STORAGE_KEYS.production, JSON.stringify({
+                    totalCans: 0,
+                    inSpecCans: 0,
+                    outOfSpec: 0,
+                    productionTime: 0,
+                    downtime: 0,
+                    cleaningTime: 0,
+                    pauseTime: 0,
+                    cansLostDuringDowntime: 0
+                }));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.runtimeHistory)) {
+                localStorage.setItem(STORAGE_KEYS.runtimeHistory, JSON.stringify([]));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.session)) {
+                localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({ isActive: false, startDate: null }));
+            }
+            
+            if (!localStorage.getItem(STORAGE_KEYS.accumulatedTime)) {
+                localStorage.setItem(STORAGE_KEYS.accumulatedTime, JSON.stringify({
+                    production: 0,
+                    downtime: 0,
+                    cleaning: 0,
+                    pause: 0
+                }));
+            }
+            
+            loadData();
+            initializeCharts();
+            updateSessionStatus();
+        }
+        
+        function updateSessionStatus() {
+            const sessionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.session)) || { isActive: false };
+            isSessionActive = sessionData.isActive;
+            
+            if (isSessionActive) {
+                document.getElementById('sessionStatus').textContent = 'Active';
+                document.getElementById('sessionStatus').className = 'status status-running';
+            } else {
+                document.getElementById('sessionStatus').textContent = 'Not Started';
+                document.getElementById('sessionStatus').className = 'status status-stopped';
+            }
+        }
+        
+        function startSession() {
+            const sessionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.session)) || { isActive: false };
+            
+            if (sessionData.isActive) {
+                alert('A session is already active.');
+                return;
+            }
+            
+            sessionData.isActive = true;
+            sessionData.startDate = new Date().toISOString();
+            localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(sessionData));
+            isSessionActive = true;
+            updateSessionStatus();
+            startProduction();
+        }
+        
+        function endSession() {
+            stopProduction();
+            stopDowntimeTimer();
+            stopCleaningTimer();
+            stopPauseTimer();
+            
+            document.getElementById('downtimeCansSection').style.display = 'none';
+            
+            const accumulatedTime = {
+                production: accumulatedProductionSeconds + productionSeconds,
+                downtime: accumulatedDowntimeSeconds + downtimeSeconds,
+                cleaning: accumulatedCleaningSeconds + cleaningSeconds,
+                pause: accumulatedPauseSeconds + pauseSeconds
+            };
+            localStorage.setItem(STORAGE_KEYS.accumulatedTime, JSON.stringify(accumulatedTime));
+            
+            productionSeconds = 0;
+            downtimeSeconds = 0;
+            cleaningSeconds = 0;
+            pauseSeconds = 0;
+            tempDowntimeCansLost = 0;
+            
+            const sessionData = { isActive: false, startDate: null };
+            localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(sessionData));
+            isSessionActive = false;
+            
+            document.getElementById('sessionStatus').textContent = 'Session Ended';
+            document.getElementById('sessionStatus').className = 'status status-stopped';
+            document.getElementById('productionStatus').textContent = 'Stopped';
+            document.getElementById('productionStatus').className = 'status status-stopped';
+            document.querySelectorAll('.card-header .status').forEach(el => {
+                el.textContent = 'Stopped';
+                el.className = 'status status-stopped';
+            });
+            
+            document.getElementById('startButton').classList.remove('active');
+            document.getElementById('stopButton').classList.remove('active');
+            
+            saveProductionData();
+            updateTimerDisplays();
+            updateCharts();
+            
+            alert('Session ended. All data has been saved. You can restart tomorrow.');
+        }
+        
+        function cancelDowntimeCans() {
+            document.getElementById('downtimeCansLost').value = 0;
+            tempDowntimeCansLost = 0;
+            document.getElementById('downtimeCansSection').style.display = 'none';
+            alert('Downtime cans entry cancelled.');
+        }
+        
+        function addDowntimeCansToOutOfSpec() {
+            const cansLost = parseInt(document.getElementById('downtimeCansLost').value) || 0;
+            if (cansLost === 0) {
+                alert('Please enter a value greater than 0.');
+                return;
+            }
+            
+            const currentOutOfSpec = parseInt(document.getElementById('runOutOfSpec').value) || 0;
+            document.getElementById('runOutOfSpec').value = currentOutOfSpec + cansLost;
+            
+            document.getElementById('downtimeCansLost').value = 0;
+            tempDowntimeCansLost = 0;
+            
+            alert(`${cansLost} cans added to Out of Spec (This Run).`);
+        }
+        
+        function sendToTotalizer() {
+            const runInSpecCans = parseInt(document.getElementById('runInSpecCans').value) || 0;
+            const runOutOfSpec = parseInt(document.getElementById('runOutOfSpec').value) || 0;
+            
+            if (runInSpecCans === 0 && runOutOfSpec === 0) {
+                alert('Please enter at least one value to send to the totalizer.');
+                return;
+            }
+            
+            const runTotalCans = runInSpecCans + runOutOfSpec;
+            
+            const productionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.production)) || {};
+            const currentTotalCans = parseInt(productionData.totalCans) || 0;
+            const currentInSpecCans = parseInt(productionData.inSpecCans) || 0;
+            const currentOutOfSpec = parseInt(productionData.outOfSpec) || 0;
+            
+            const newTotalCans = currentTotalCans + runTotalCans;
+            const newInSpecCans = currentInSpecCans + runInSpecCans;
+            const newOutOfSpec = currentOutOfSpec + runOutOfSpec;
+            
+            productionData.totalCans = newTotalCans;
+            productionData.inSpecCans = newInSpecCans;
+            productionData.outOfSpec = newOutOfSpec;
+            localStorage.setItem(STORAGE_KEYS.production, JSON.stringify(productionData));
+            
+            document.getElementById('totalCans').value = newTotalCans;
+            document.getElementById('inSpecCans').value = newInSpecCans;
+            document.getElementById('outOfSpec').value = newOutOfSpec;
+            
+            document.getElementById('totalCansDisplay').textContent = newTotalCans;
+            document.getElementById('inSpecCansDisplay').textContent = newInSpecCans;
+            document.getElementById('outOfSpecDisplay').textContent = newOutOfSpec;
+            
+            document.getElementById('runInSpecCans').value = 0;
+            document.getElementById('runOutOfSpec').value = 0;
+            
+            alert('Data sent to totalizer successfully!');
+        }
+        
+        function resetRunData() {
+            document.getElementById('runInSpecCans').value = 0;
+            document.getElementById('runOutOfSpec').value = 0;
+            alert('Run data has been reset.');
+        }
+        
+        function initializeCharts() {
+            const accumulatedTime = JSON.parse(localStorage.getItem(STORAGE_KEYS.accumulatedTime)) || {
+                production: 0,
+                downtime: 0,
+                cleaning: 0,
+                pause: 0
+            };
+            
+            const timeDistributionCtx = document.getElementById('timeDistributionChart').getContext('2d');
+            timeDistributionChart = new Chart(timeDistributionCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Production Time', 'Downtime', 'Cleaning Time', 'Operator Pause'],
+                    datasets: [{
+                        label: 'Time (seconds)',
+                        data: [
+                            accumulatedTime.production + productionSeconds,
+                            accumulatedTime.downtime + downtimeSeconds,
+                            accumulatedTime.cleaning + cleaningSeconds,
+                            accumulatedTime.pause + pauseSeconds
+                        ],
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(243, 156, 18, 0.7)',
+                            'rgba(52, 152, 219, 0.7)',
+                            'rgba(231, 76, 60, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(243, 156, 18, 1)',
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            const efficiencyCtx = document.getElementById('efficiencyChart').getContext('2d');
+            efficiencyChart = new Chart(efficiencyCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Running', 'Downtime', 'Cleaning', 'Pause'],
+                    datasets: [{
+                        data: [
+                            accumulatedTime.production + productionSeconds,
+                            accumulatedTime.downtime + downtimeSeconds,
+                            accumulatedTime.cleaning + cleaningSeconds,
+                            accumulatedTime.pause + pauseSeconds
+                        ],
+                        backgroundColor: [
+                            'rgba(46, 204, 113, 0.7)',
+                            'rgba(243, 156, 18, 0.7)',
+                            'rgba(52, 152, 219, 0.7)',
+                            'rgba(231, 76, 60, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(46, 204, 113, 1)',
+                            'rgba(243, 156, 18, 1)',
+                            'rgba(52, 152, 219, 1)',
+                            'rgba(231, 76, 60, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateCharts() {
+            const accumulatedTime = JSON.parse(localStorage.getItem(STORAGE_KEYS.accumulatedTime)) || {
+                production: 0,
+                downtime: 0,
+                cleaning: 0,
+                pause: 0
+            };
+            
+            if (timeDistributionChart) {
+                timeDistributionChart.data.datasets[0].data = [
+                    accumulatedTime.production + productionSeconds,
+                    accumulatedTime.downtime + downtimeSeconds,
+                    accumulatedTime.cleaning + cleaningSeconds,
+                    accumulatedTime.pause + pauseSeconds
+                ];
+                timeDistributionChart.update();
+            }
+            
+            if (efficiencyChart) {
+                efficiencyChart.data.datasets[0].data = [
+                    accumulatedTime.production + productionSeconds,
+                    accumulatedTime.downtime + downtimeSeconds,
+                    accumulatedTime.cleaning + cleaningSeconds,
+                    accumulatedTime.pause + pauseSeconds
+                ];
+                efficiencyChart.update();
+            }
+        }
+        
+        function exportToExcel() {
+            const productionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.production)) || {};
+            const accumulatedTime = JSON.parse(localStorage.getItem(STORAGE_KEYS.accumulatedTime)) || {
+                production: 0,
+                downtime: 0,
+                cleaning: 0,
+                pause: 0
+            };
+            const maintenanceData = JSON.parse(localStorage.getItem(STORAGE_KEYS.maintenance)) || [];
+            const tpmData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tpm)) || [];
+            const oeeData = JSON.parse(localStorage.getItem(STORAGE_KEYS.oee)) || {};
+            const stationsData = JSON.parse(localStorage.getItem(STORAGE_KEYS.stations)) || [];
+            
+            const wb = XLSX.utils.book_new();
+            
+            const productionSheetData = [
+                ['Production Data', ''],
+                ['Total Cans Produced', productionData.totalCans || 0],
+                ['In-Spec Cans', productionData.inSpecCans || 0],
+                ['Out of Spec', productionData.outOfSpec || 0],
+                ['Cans Lost During Downtime', productionData.cansLostDuringDowntime || 0],
+                ['Production Time (s)', accumulatedTime.production + (productionData.productionTime || 0)],
+                ['Downtime (s)', accumulatedTime.downtime + (productionData.downtime || 0)],
+                ['Cleaning Time (s)', accumulatedTime.cleaning + (productionData.cleaningTime || 0)],
+                ['Operator Pause (s)', accumulatedTime.pause + (productionData.pauseTime || 0)],
+                ['', ''],
+                ['OEE Metrics', ''],
+                ['Availability (%)', oeeData.availability || 0],
+                ['Performance (%)', oeeData.performance || 0],
+                ['Quality (%)', oeeData.quality || 0],
+                ['Overall OEE (%)', oeeData.oee || 0]
+            ];
+            const productionSheet = XLSX.utils.aoa_to_sheet(productionSheetData);
+            XLSX.utils.book_append_sheet(wb, productionSheet, 'Production Data');
+            
+            const maintenanceSheetData = [
+                ['Date', 'Start Time', 'End Time', 'Station', 'Type', 'Description']
+            ];
+            maintenanceData.forEach(item => {
+                maintenanceSheetData.push([
+                    item.date,
+                    item.start,
+                    item.end,
+                    item.station,
+                    item.type,
+                    item.description
+                ]);
+            });
+            const maintenanceSheet = XLSX.utils.aoa_to_sheet(maintenanceSheetData);
+            XLSX.utils.book_append_sheet(wb, maintenanceSheet, 'Maintenance Schedule');
+            
+            const tpmSheetData = [
+                ['Date', 'Station', 'Root Cause', 'Sub-cause', 'Cans Lost', 'Description', 'Duration (min)', 'Solution', 'Replaced Parts']
+            ];
+            tpmData.forEach(item => {
+                tpmSheetData.push([
+                    item.date,
+                    item.station,
+                    item.cause,
+                    item.subCause || '',
+                    item.cansLost || 0,
+                    item.description,
+                    item.duration || 0,
+                    item.solution || '',
+                    item.parts || ''
+                ]);
+            });
+            const tpmSheet = XLSX.utils.aoa_to_sheet(tpmSheetData);
+            XLSX.utils.book_append_sheet(wb, tpmSheet, 'TPM Data');
+            
+            const stationsSheetData = [
+                ['Station', 'OEE (%)', 'Availability (%)', 'Performance (%)', 'Quality (%)', 'Status']
+            ];
+            stationsData.forEach(station => {
+                stationsSheetData.push([
+                    station.name,
+                    station.oee || 0,
+                    station.availability || 0,
+                    station.performance || 0,
+                    station.quality || 0,
+                    station.status || ''
+                ]);
+            });
+            const stationsSheet = XLSX.utils.aoa_to_sheet(stationsSheetData);
+            XLSX.utils.book_append_sheet(wb, stationsSheet, 'Stations Data');
+            
+            XLSX.writeFile(wb, 'Wild_Goose_Production_Report.xlsx');
+        }
+        
+        function loadData() {
+            loadStations();
+            loadMaintenance();
+            loadTPM();
+            loadOEE();
+            loadProductionData();
+            loadAccumulatedTime();
+        }
+        
+        function loadAccumulatedTime() {
+            const accumulatedTime = JSON.parse(localStorage.getItem(STORAGE_KEYS.accumulatedTime)) || {
+                production: 0,
+                downtime: 0,
+                cleaning: 0,
+                pause: 0
+            };
+            
+            accumulatedProductionSeconds = accumulatedTime.production || 0;
+            accumulatedDowntimeSeconds = accumulatedTime.downtime || 0;
+            accumulatedCleaningSeconds = accumulatedTime.cleaning || 0;
+            accumulatedPauseSeconds = accumulatedTime.pause || 0;
+        }
+        
+        function loadProductionData() {
+            const productionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.production)) || {};
+            
+            document.getElementById('totalCans').value = productionData.totalCans || 0;
+            document.getElementById('inSpecCans').value = productionData.inSpecCans || 0;
+            document.getElementById('outOfSpec').value = productionData.outOfSpec || 0;
+            
+            document.getElementById('totalCansDisplay').textContent = productionData.totalCans || 0;
+            document.getElementById('inSpecCansDisplay').textContent = productionData.inSpecCans || 0;
+            document.getElementById('outOfSpecDisplay').textContent = productionData.outOfSpec || 0;
+            
+            productionSeconds = productionData.productionTime || 0;
+            downtimeSeconds = productionData.downtime || 0;
+            cleaningSeconds = productionData.cleaningTime || 0;
+            pauseSeconds = productionData.pauseTime || 0;
+            
+            updateTimerDisplays();
+            updateCharts();
+        }
+        
+        function saveProductionData() {
+            const productionData = {
+                totalCans: parseInt(document.getElementById('totalCans').value) || 0,
+                inSpecCans: parseInt(document.getElementById('inSpecCans').value) || 0,
+                outOfSpec: parseInt(document.getElementById('outOfSpec').value) || 0,
+                productionTime: productionSeconds,
+                downtime: downtimeSeconds,
+                cleaningTime: cleaningSeconds,
+                pauseTime: pauseSeconds,
+                cansLostDuringDowntime: parseInt(document.getElementById('downtimeCansLost').value) || 0
+            };
+            localStorage.setItem(STORAGE_KEYS.production, JSON.stringify(productionData));
+            updateCharts();
+        }
+        
+        function updateTimerDisplays() {
+            document.getElementById('productionTimer').textContent = formatTime(productionSeconds);
+            document.getElementById('downtimeTimer').textContent = formatTime(downtimeSeconds);
+            document.getElementById('cleaningTimer').textContent = formatTime(cleaningSeconds);
+            document.getElementById('pauseTimer').textContent = formatTime(pauseSeconds);
+        }
+        
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function startProduction() {
+            if (isProductionRunning) return;
+            
+            const sessionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.session)) || { isActive: false };
+            if (!sessionData.isActive) {
+                sessionData.isActive = true;
+                sessionData.startDate = new Date().toISOString();
+                localStorage.setItem(STORAGE_KEYS.session, JSON.stringify(sessionData));
+                isSessionActive = true;
+                updateSessionStatus();
+            }
+            
+            isProductionRunning = true;
+            document.getElementById('productionStatus').textContent = 'Running';
+            document.getElementById('productionStatus').className = 'status status-running';
+            document.querySelectorAll('.card-header .status').forEach(el => {
+                el.textContent = 'Running';
+                el.className = 'status status-running';
+            });
+            document.getElementById('startButton').classList.add('active');
+            document.getElementById('stopButton').classList.remove('active');
+            
+            productionTimerInterval = setInterval(() => {
+                productionSeconds++;
+                updateTimerDisplays();
+                saveProductionData();
+                updateCharts();
+            }, 1000);
+        }
+        
+        function stopProduction() {
+            if (!isProductionRunning) return;
+            
+            isProductionRunning = false;
+            document.getElementById('productionStatus').textContent = 'Stopped';
+            document.getElementById('productionStatus').className = 'status status-stopped';
+            document.querySelectorAll('.card-header .status').forEach(el => {
+                el.textContent = 'Stopped';
+                el.className = 'status status-stopped';
+            });
+            document.getElementById('startButton').classList.remove('active');
+            document.getElementById('stopButton').classList.add('active');
+            
+            clearInterval(productionTimerInterval);
+            saveProductionData();
+        }
+        
+        function toggleDowntimeTimer() {
+            if (isDowntimeRunning) {
+                stopDowntimeTimer();
+            } else {
+                startDowntimeTimer();
+            }
+        }
+        
+        function startDowntimeTimer() {
+            if (isDowntimeRunning) return;
+            
+            isDowntimeRunning = true;
+            document.getElementById('downtimeCansSection').style.display = 'block';
+            
+            downtimeTimerInterval = setInterval(() => {
+                downtimeSeconds++;
+                updateTimerDisplays();
+                saveProductionData();
+                updateCharts();
+            }, 1000);
+        }
+        
+        function stopDowntimeTimer() {
+            if (!isDowntimeRunning) return;
+            
+            isDowntimeRunning = false;
+            clearInterval(downtimeTimerInterval);
+            
+            tempDowntimeCansLost = parseInt(document.getElementById('downtimeCansLost').value) || 0;
+            
+            const currentOutOfSpec = parseInt(document.getElementById('runOutOfSpec').value) || 0;
+            document.getElementById('runOutOfSpec').value = currentOutOfSpec + tempDowntimeCansLost;
+            
+            document.getElementById('downtimeCansLost').value = 0;
+            
+            saveProductionData();
+        }
+        
+        function resetDowntimeTimer() {
+            stopDowntimeTimer();
+            downtimeSeconds = 0;
+            tempDowntimeCansLost = 0;
+            document.getElementById('downtimeCansLost').value = 0;
+            updateTimerDisplays();
+            saveProductionData();
+            updateCharts();
+        }
+        
+        function toggleCleaningTimer() {
+            if (isCleaningRunning) {
+                stopCleaningTimer();
+            } else {
+                startCleaningTimer();
+            }
+        }
+        
+        function startCleaningTimer() {
+            if (isCleaningRunning) return;
+            
+            isCleaningRunning = true;
+            cleaningTimerInterval = setInterval(() => {
+                cleaningSeconds++;
+                updateTimerDisplays();
+                saveProductionData();
+                updateCharts();
+            }, 1000);
+        }
+        
+        function stopCleaningTimer() {
+            if (!isCleaningRunning) return;
+            
+            isCleaningRunning = false;
+            clearInterval(cleaningTimerInterval);
+            saveProductionData();
+        }
+        
+        function resetCleaningTimer() {
+            stopCleaningTimer();
+            cleaningSeconds = 0;
+            updateTimerDisplays();
+            saveProductionData();
+            updateCharts();
+        }
+        
+        function startPauseTimer() {
+            if (isPauseRunning) return;
+            
+            isPauseRunning = true;
+            pauseTimerInterval = setInterval(() => {
+                pauseSeconds++;
+                updateTimerDisplays();
+                saveProductionData();
+                updateCharts();
+            }, 1000);
+        }
+        
+        function stopPauseTimer() {
+            if (!isPauseRunning) return;
+            
+            isPauseRunning = false;
+            clearInterval(pauseTimerInterval);
+            saveProductionData();
+        }
+        
+        function resetPauseTimer() {
+            stopPauseTimer();
+            pauseSeconds = 0;
+            updateTimerDisplays();
+            saveProductionData();
+            updateCharts();
+        }
+        
+        function loadStations() {
+            const savedStations = JSON.parse(localStorage.getItem(STORAGE_KEYS.stations)) || stations;
+            savedStations.forEach(station => {
+                const icon = document.getElementById(`${station.id}-icon`);
+                const status = document.getElementById(`${station.id}-status`);
+                
+                if (icon) {
+                    icon.className = `station-icon ${station.status}`;
+                    icon.innerHTML = station.icon;
+                }
+                
+                if (status) {
+                    const statusText = station.oee > 0 ? `${station.oee}% | ${station.status === 'active' ? 'OK' : station.status === 'warning' ? 'Warning' : 'Critical'}` : '0% | -';
+                    status.textContent = statusText;
+                }
+            });
+            
+            const equipmentHealthDiv = document.getElementById('equipmentHealth');
+            equipmentHealthDiv.innerHTML = '';
+            savedStations.forEach(station => {
+                const healthDiv = document.createElement('div');
+                healthDiv.style.background = 'var(--light)';
+                healthDiv.style.padding = '15px';
+                healthDiv.style.borderRadius = '6px';
+                
+                const statusEmoji = station.oee >= 90 ? '🟢' : station.oee >= 70 ? '🟡' : station.oee > 0 ? '🔴' : '⚪';
+                const statusText = station.oee > 0 ? `${station.oee}% - ${station.status === 'active' ? 'Good' : station.status === 'warning' ? 'Warning' : 'Critical'}` : '0% - -';
+                
+                healthDiv.innerHTML = `
+                    <h4><i class="fas fa-box-open"></i> ${station.name}</h4>
+                    <p>${statusEmoji} ${statusText}</p>
+                    <p style="font-size: 12px; color: #7f8c8d;">Last maintenance: -</p>
+                `;
+                equipmentHealthDiv.appendChild(healthDiv);
+            });
+        }
+        
+        function loadMaintenance() {
+            const maintenance = JSON.parse(localStorage.getItem(STORAGE_KEYS.maintenance)) || [];
+            const scheduleDiv = document.getElementById('maintenanceSlots');
+            scheduleDiv.innerHTML = '';
+            
+            maintenance.forEach(item => {
+                const slot = document.createElement('div');
+                slot.className = `time-slot ${item.type.toLowerCase().includes('tpm') ? 'tpm' : 'maintenance'}`;
+                slot.innerHTML = `
+                    <span><i class="fas fa-wrench"></i> ${item.date} - ${item.start}-${item.end}</span>
+                    <span>${item.type}</span>
+                `;
+                scheduleDiv.appendChild(slot);
+            });
+        }
+        
+        function loadTPM() {
+            const tpmData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tpm)) || [];
+            
+            const causeCounts = {};
+            tpmData.forEach(item => {
+                causeCounts[item.cause] = (causeCounts[item.cause] || 0) + 1;
+            });
+            
+            const totalBreakdowns = tpmData.length;
+            document.querySelectorAll('.cause-item span:last-child').forEach((span, index) => {
+                const causes = ['mechanical', 'electrical', 'seaming', 'filling', 'operator', 'other'];
+                const cause = causes[index];
+                const count = causeCounts[cause] || 0;
+                const percentage = totalBreakdowns > 0 ? Math.round((count / totalBreakdowns) * 100) : 0;
+                span.textContent = `${percentage}%`;
+            });
+        }
+        
+        function loadOEE() {
+            const oeeData = JSON.parse(localStorage.getItem(STORAGE_KEYS.oee)) || {};
+            document.getElementById('availability').textContent = `${oeeData.availability || 0}%`;
+            document.getElementById('performance').textContent = `${oeeData.performance || 0}%`;
+            document.getElementById('quality').textContent = `${oeeData.quality || 0}%`;
+            document.getElementById('oee').textContent = `${oeeData.oee || 0}%`;
+        }
+        
+        function selectLine(stationId) {
+            if (stationId === 'complete') {
+                document.querySelectorAll('.station').forEach(station => {
+                    station.style.display = 'flex';
+                });
+                document.querySelectorAll('.arrow').forEach(arrow => {
+                    arrow.style.display = 'block';
+                });
+            } else {
+                document.querySelectorAll('.station').forEach(station => {
+                    station.style.display = station.getAttribute('onclick').includes(stationId) ? 'flex' : 'none';
+                });
+                document.querySelectorAll('.arrow').forEach(arrow => {
+                    arrow.style.display = 'none';
+                });
+            }
+        }
+        
+        function showStationDetails(stationId) {
+            const savedStations = JSON.parse(localStorage.getItem(STORAGE_KEYS.stations)) || stations;
+            const station = savedStations.find(s => s.id === stationId);
+            if (!station) return;
+            
+            document.getElementById('stationDetailsTitle').textContent = `Details - ${station.name}`;
+            document.getElementById('stationOEE').textContent = `${station.oee || 0}%`;
+            document.getElementById('stationAvailability').textContent = `${station.availability || 0}%`;
+            document.getElementById('stationPerformance').textContent = `${station.performance || 0}%`;
+            document.getElementById('stationQuality').textContent = `${station.quality || 0}%`;
+            
+            const tpmData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tpm)) || [];
+            const stationTPM = tpmData.filter(item => item.station === stationId);
+            
+            const historyDiv = document.getElementById('stationTPMHistory');
+            historyDiv.innerHTML = '';
+            
+            if (stationTPM.length === 0) {
+                historyDiv.innerHTML = '<p>No breakdowns recorded for this station.</p>';
+            } else {
+                stationTPM.forEach(item => {
+                    const p = document.createElement('p');
+                    p.style.marginBottom = '10px';
+                    p.style.padding = '8px';
+                    p.style.background = '#f8f9fa';
+                    p.style.borderRadius = '4px';
+                    p.innerHTML = `
+                        <strong>${new Date(item.date).toLocaleDateString('en-GB')}</strong> - 
+                        ${item.cause} (${item.duration} min) <br>
+                        <small>${item.description} | Cans Lost: ${item.cansLost || 0}</small>
+                    `;
+                    historyDiv.appendChild(p);
+                });
+            }
+            
+            document.getElementById('stationDetails').classList.add('active');
+        }
+        
+        function openModal(type) {
+            const modal = document.getElementById(`${type}Modal`);
+            modal.classList.add('active');
+            
+            if (type === 'maintenance') {
+                document.getElementById('maintenanceDate').valueAsDate = new Date();
+            } else if (type === 'tpm') {
+                document.getElementById('tpmDate').valueAsDate = new Date();
+                document.getElementById('tpmCansLost').value = tempDowntimeCansLost || 0;
+            }
+        }
+        
+        function closeModal(type) {
+            const modal = document.getElementById(`${type}Modal`);
+            modal.classList.remove('active');
+            if (type === 'tpm' || type === 'maintenance') {
+                document.getElementById(`${type}Form`).reset();
+            }
+            tempDowntimeCansLost = 0;
+        }
+        
+        function saveMaintenance() {
+            const station = document.getElementById('maintenanceStation').value;
+            const date = document.getElementById('maintenanceDate').value;
+            const start = document.getElementById('maintenanceStart').value;
+            const end = document.getElementById('maintenanceEnd').value;
+            const type = document.getElementById('maintenanceType').value;
+            const description = document.getElementById('maintenanceDescription').value;
+            
+            if (!station || !date || !start || !end || !type || !description) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            const maintenance = JSON.parse(localStorage.getItem(STORAGE_KEYS.maintenance)) || [];
+            maintenance.push({
+                station,
+                date,
+                start,
+                end,
+                type: `${type} - ${description}`,
+                description
+            });
+            
+            localStorage.setItem(STORAGE_KEYS.maintenance, JSON.stringify(maintenance));
+            loadMaintenance();
+            closeModal('maintenance');
+        }
+        
+        function saveTPM() {
+            const station = document.getElementById('tpmStation').value;
+            const date = document.getElementById('tpmDate').value;
+            const cause = document.getElementById('tpmCause').value;
+            const cansLost = document.getElementById('tpmCansLost').value;
+            const subCause = document.getElementById('tpmSubCause').value;
+            const description = document.getElementById('tpmDescription').value;
+            const duration = document.getElementById('tpmDuration').value;
+            const solution = document.getElementById('tpmSolution').value;
+            const parts = document.getElementById('tpmParts').value;
+            
+            if (!station || !date || !cause || !description || !duration) {
+                alert('Please fill in all required fields');
+                return;
+            }
+            
+            const tpmData = JSON.parse(localStorage.getItem(STORAGE_KEYS.tpm)) || [];
+            tpmData.push({
+                station,
+                date,
+                cause,
+                cansLost: parseInt(cansLost) || 0,
+                subCause,
+                description,
+                duration: parseInt(duration),
+                solution,
+                parts
+            });
+            
+            const currentOutOfSpec = parseInt(document.getElementById('runOutOfSpec').value) || 0;
+            const cansLostValue = parseInt(cansLost) || 0;
+            document.getElementById('runOutOfSpec').value = currentOutOfSpec + cansLostValue;
+            
+            const productionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.production)) || {};
+            productionData.cansLostDuringDowntime = (productionData.cansLostDuringDowntime || 0) + cansLostValue;
+            localStorage.setItem(STORAGE_KEYS.production, JSON.stringify(productionData));
+            
+            localStorage.setItem(STORAGE_KEYS.tpm, JSON.stringify(tpmData));
+            updateOEEFromTPM(tpmData);
+            updateStationStatus(station, cause);
+            loadTPM();
+            loadStations();
+            closeModal('tpm');
+            
+            document.getElementById('downtimeCansSection').style.display = 'none';
+            document.getElementById('downtimeCansLost').value = 0;
+            tempDowntimeCansLost = 0;
+            
+            updateTotalizerDisplay();
+        }
+        
+        function updateTotalizerDisplay() {
+            const productionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.production)) || {};
+            document.getElementById('totalCansDisplay').textContent = productionData.totalCans || 0;
+            document.getElementById('inSpecCansDisplay').textContent = productionData.inSpecCans || 0;
+            document.getElementById('outOfSpecDisplay').textContent = productionData.outOfSpec || 0;
+        }
+        
+        function updateOEEFromTPM(tpmData) {
+            const oeeData = JSON.parse(localStorage.getItem(STORAGE_KEYS.oee)) || {};
+            const totalDowntime = tpmData.reduce((sum, item) => sum + (item.duration || 0), 0);
+            const availabilityReduction = totalDowntime / 60 / 24;
+            
+            oeeData.availability = Math.max(0, (oeeData.availability || 100) - availabilityReduction * 2);
+            oeeData.oee = Math.max(0, (oeeData.oee || 100) - availabilityReduction);
+            
+            localStorage.setItem(STORAGE_KEYS.oee, JSON.stringify(oeeData));
+            loadOEE();
+        }
+        
+        function updateStationStatus(stationId, cause) {
+            const savedStations = JSON.parse(localStorage.getItem(STORAGE_KEYS.stations)) || stations;
+            const stationIndex = savedStations.findIndex(s => s.id === stationId);
+            
+            if (stationIndex !== -1) {
+                if (cause === 'mechanical') {
+                    savedStations[stationIndex].oee = Math.max(0, savedStations[stationIndex].oee - 5);
+                    savedStations[stationIndex].status = savedStations[stationIndex].oee < 80 ? 'danger' : savedStations[stationIndex].oee < 90 ? 'warning' : 'active';
+                } else if (cause === 'electrical') {
+                    savedStations[stationIndex].oee = Math.max(0, savedStations[stationIndex].oee - 3);
+                    savedStations[stationIndex].status = savedStations[stationIndex].oee < 80 ? 'warning' : 'active';
+                }
+                
+                localStorage.setItem(STORAGE_KEYS.stations, JSON.stringify(savedStations));
+            }
+        }
+        
+        function filterByCause(cause) {
+            alert(`Filter applied: ${cause}`);
+        }
+        
+        window.onload = initializeData;
+        
+        document.getElementById('totalCans').addEventListener('change', saveProductionData);
+        document.getElementById('inSpecCans').addEventListener('change', saveProductionData);
+        document.getElementById('outOfSpec').addEventListener('change', saveProductionData);
+        document.getElementById('downtimeCansLost').addEventListener('change', saveProductionData);
+    </script>
+</body>
+</html>
